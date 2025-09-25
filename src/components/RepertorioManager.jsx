@@ -7,14 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Plus, Edit, Trash2, Play, GripVertical, Music } from 'lucide-react';
-import { collection, addDoc, query, orderBy, onSnapshot, doc, deleteDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 
 export default function RepertorioManager({ repertorio, onBack, onStartLiveMode }) {
   const [musicas, setMusicas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [musicaToDelete, setMusicaToDelete] = useState(null);
   const [editingMusica, setEditingMusica] = useState(null);
   const [newMusica, setNewMusica] = useState({
     titulo: '',
@@ -29,25 +30,41 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
     'Cm', 'C#m', 'Dm', 'D#m', 'Em', 'Fm', 'F#m', 'Gm', 'G#m', 'Am', 'A#m', 'Bm'
   ];
 
-  // Carregar músicas do repertório
   useEffect(() => {
     if (!repertorio) return;
 
-    const q = query(
-      collection(db, 'repertorios', repertorio.id, 'musicas'),
-      orderBy('ordem', 'asc')
-    );
+    const fetchMusicas = async () => {
+      setLoading(true);
+      const { data: musicasData, error } = await supabase
+        .from('musicas')
+        .select('*')
+        .eq('repertorio_id', repertorio.id)
+        .order('ordem', { ascending: true });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const musicasData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMusicas(musicasData);
+      if (error) {
+        console.error('Erro ao carregar músicas:', error);
+      } else {
+        setMusicas(musicasData);
+      }
       setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    fetchMusicas();
+
+    const subscription = supabase
+      .channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'musicas', filter: `repertorio_id=eq.${repertorio.id}` },
+        (payload) => {
+          fetchMusicas();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, [repertorio]);
 
   const handleCreateMusica = async (e) => {
@@ -56,10 +73,13 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
     if (!newMusica.titulo.trim()) return;
 
     try {
-      await addDoc(collection(db, 'repertorios', repertorio.id, 'musicas'), {
+      const { error } = await supabase.from('musicas').insert([{
         ...newMusica,
+        repertorio_id: repertorio.id,
         ordem: musicas.length
-      });
+      }]);
+
+      if (error) throw error;
 
       setNewMusica({
         titulo: '',
@@ -70,7 +90,7 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
       });
       setShowNewDialog(false);
     } catch (error) {
-      console.error('Erro ao criar música:', error);
+      console.error('Erro ao criar música:', error.message);
     }
   };
 
@@ -80,28 +100,46 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
     if (!editingMusica || !editingMusica.titulo.trim()) return;
 
     try {
-      await updateDoc(doc(db, 'repertorios', repertorio.id, 'musicas', editingMusica.id), {
-        titulo: editingMusica.titulo,
-        artista: editingMusica.artista,
-        tonalidade: editingMusica.tonalidade,
-        acordes: editingMusica.acordes,
-        observacoes: editingMusica.observacoes
-      });
+      const { error } = await supabase
+        .from('musicas')
+        .update({
+          titulo: editingMusica.titulo,
+          artista: editingMusica.artista,
+          tonalidade: editingMusica.tonalidade,
+          acordes: editingMusica.acordes,
+          observacoes: editingMusica.observacoes
+        })
+        .eq('id', editingMusica.id);
+
+      if (error) throw error;
 
       setEditingMusica(null);
       setShowEditDialog(false);
     } catch (error) {
-      console.error('Erro ao editar música:', error);
+      console.error('Erro ao editar música:', error.message);
     }
   };
 
-  const handleDeleteMusica = async (musicaId) => {
-    if (!confirm('Tem certeza que deseja excluir esta música?')) return;
+  const openDeleteDialog = (musicaId) => {
+    setMusicaToDelete(musicaId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteMusica = async () => {
+    if (!musicaToDelete) return;
 
     try {
-      await deleteDoc(doc(db, 'repertorios', repertorio.id, 'musicas', musicaId));
+      const { error } = await supabase
+        .from('musicas')
+        .delete()
+        .eq('id', musicaToDelete);
+
+      if (error) throw error;
     } catch (error) {
-      console.error('Erro ao excluir música:', error);
+      console.error('Erro ao excluir música:', error.message);
+    } finally {
+      setMusicaToDelete(null);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -284,7 +322,7 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
                       <Button variant="outline" size="sm" onClick={() => openEditDialog(musica)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteMusica(musica.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(musica.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -387,6 +425,26 @@ export default function RepertorioManager({ repertorio, onBack, onStartLiveMode 
                 </div>
               </form>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir esta música? Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="destructive" onClick={handleDeleteMusica}>
+                Excluir
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </main>

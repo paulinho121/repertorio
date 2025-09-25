@@ -1,13 +1,5 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged,
-  updateProfile
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { auth, db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 
 // Contexto de autenticação
 const AuthContext = createContext();
@@ -27,68 +19,66 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // Buscar dados adicionais do usuário no Firestore
-        const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        const userData = userDoc.exists() ? userDoc.data() : {};
-        
-        setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          ...userData
-        });
-      } else {
-        setUser(null);
-      }
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    }
+
+    getSession();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   // Função para fazer login
   const login = async (email, password) => {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return { success: true, user: result.user };
-    } catch (error) {
-      return { success: false, error: error.message };
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+      if (error.message === 'Email not confirmed') {
+        return { success: false, error: 'Seu email ainda não foi confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação.' };
+      }
+      return { success: false, error: 'Email ou senha incorretos.' };
     }
+
+    if (data.user && !data.session) {
+        return { success: false, error: 'Seu email ainda não foi confirmado. Por favor, verifique sua caixa de entrada e clique no link de confirmação.' };
+    }
+    
+    return { success: true, user: data.user };
   };
 
   // Função para registrar novo usuário
   const register = async (email, password, nome) => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      
-      // Atualizar perfil do usuário
-      await updateProfile(result.user, {
-        displayName: nome
-      });
-
-      // Salvar dados adicionais no Firestore
-      await setDoc(doc(db, 'usuarios', result.user.uid), {
-        nome,
-        email,
-        dataCriacao: new Date().toISOString()
-      });
-
-      return { success: true, user: result.user };
-    } catch (error) {
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password, 
+      options: {
+        data: {
+          full_name: nome,
+        }
+      }
+    });
+    if (error) {
       return { success: false, error: error.message };
     }
+    return { success: true, user: data.user };
   };
 
   // Função para fazer logout
   const logout = async () => {
-    try {
-      await signOut(auth);
-      return { success: true };
-    } catch (error) {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       return { success: false, error: error.message };
     }
+    return { success: true };
   };
 
   const value = {

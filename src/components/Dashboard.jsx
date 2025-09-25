@@ -5,41 +5,57 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Music, Play, LogOut, User, Calendar } from 'lucide-react';
+import { Plus, Music, Play, LogOut, User, Calendar, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { collection, addDoc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { supabase } from '../lib/supabase';
 
 export default function Dashboard({ onSelectRepertorio }) {
   const { user, logout } = useAuth();
   const [repertorios, setRepertorios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [repertorioToDelete, setRepertorioToDelete] = useState(null);
   const [newRepertorio, setNewRepertorio] = useState({
     nome: '',
     descricao: ''
   });
 
-  // Carregar repertórios do usuário
   useEffect(() => {
     if (!user) return;
 
-    const q = query(
-      collection(db, 'repertorios'),
-      where('ownerId', '==', user.uid),
-      orderBy('dataCriacao', 'desc')
-    );
+    const fetchRepertorios = async () => {
+      setLoading(true);
+      const { data: repertoriosData, error } = await supabase
+        .from('repertorios')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('data_criacao', { ascending: false });
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const repertoriosData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setRepertorios(repertoriosData);
+      if (error) {
+        console.error('Erro ao carregar repertórios:', error);
+      } else {
+        setRepertorios(repertoriosData);
+      }
       setLoading(false);
-    });
+    };
 
-    return unsubscribe;
+    fetchRepertorios();
+
+    const subscription = supabase
+      .channel('custom-all-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'repertorios', filter: `owner_id=eq.${user.id}` },
+        (payload) => {
+          fetchRepertorios();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, [user]);
 
   const handleCreateRepertorio = async (e) => {
@@ -48,17 +64,43 @@ export default function Dashboard({ onSelectRepertorio }) {
     if (!newRepertorio.nome.trim()) return;
 
     try {
-      await addDoc(collection(db, 'repertorios'), {
+      const { error } = await supabase.from('repertorios').insert([{
         nome: newRepertorio.nome,
         descricao: newRepertorio.descricao,
-        ownerId: user.uid,
-        dataCriacao: new Date().toISOString()
-      });
+        owner_id: user.id,
+        data_criacao: new Date().toISOString(),
+      }]);
+
+      if (error) throw error;
 
       setNewRepertorio({ nome: '', descricao: '' });
       setShowNewDialog(false);
     } catch (error) {
-      console.error('Erro ao criar repertório:', error);
+      console.error('Erro ao criar repertório:', error.message);
+    }
+  };
+
+  const openDeleteDialog = (repertorioId) => {
+    setRepertorioToDelete(repertorioId);
+    setShowDeleteDialog(true);
+  };
+
+  const handleDeleteRepertorio = async () => {
+    if (!repertorioToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from('repertorios')
+        .delete()
+        .eq('id', repertorioToDelete);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro ao excluir repertório:', error.message);
+      alert('Erro ao excluir repertório: ' + error.message);
+    } finally {
+      setRepertorioToDelete(null);
+      setShowDeleteDialog(false);
     }
   };
 
@@ -86,7 +128,7 @@ export default function Dashboard({ onSelectRepertorio }) {
             <div className="flex items-center space-x-4">
               <div className="flex items-center text-sm text-gray-600">
                 <User className="h-4 w-4 mr-1" />
-                {user?.displayName || user?.email}
+                {user?.user_metadata?.full_name || user?.email}
               </div>
               <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
@@ -102,7 +144,7 @@ export default function Dashboard({ onSelectRepertorio }) {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Bem-vindo, {user?.displayName || 'Músico'}!
+            Bem-vindo, {user?.user_metadata?.full_name || 'Músico'}!
           </h2>
           <p className="text-gray-600">
             Organize seus repertórios e tenha tudo na ponta dos dedos durante suas apresentações.
@@ -181,38 +223,72 @@ export default function Dashboard({ onSelectRepertorio }) {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {repertorios.map((repertorio) => (
-              <Card key={repertorio.id} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span className="truncate">{repertorio.nome}</span>
-                    <Music className="h-5 w-5 text-blue-600 flex-shrink-0" />
-                  </CardTitle>
-                  {repertorio.descricao && (
-                    <CardDescription className="line-clamp-2">
-                      {repertorio.descricao}
-                    </CardDescription>
-                  )}
-                </CardHeader>
+              <Card key={repertorio.id} className="flex flex-col justify-between hover:shadow-lg transition-shadow">
+                <div onClick={() => onSelectRepertorio(repertorio)} className="cursor-pointer">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="truncate">{repertorio.nome}</span>
+                      <Music className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                    </CardTitle>
+                    {repertorio.descricao && (
+                      <CardDescription className="line-clamp-2 h-[40px]">
+                        {repertorio.descricao}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+                </div>
                 <CardContent>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {formatDate(repertorio.dataCriacao)}
+                      {formatDate(repertorio.data_criacao)}
                     </div>
-                    <Button 
-                      size="sm" 
-                      onClick={() => onSelectRepertorio(repertorio)}
-                      className="ml-2"
-                    >
-                      <Play className="h-4 w-4 mr-1" />
-                      Abrir
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button 
+                        variant="destructive"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteDialog(repertorio.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        onClick={() => onSelectRepertorio(repertorio)}
+                      >
+                        <Play className="h-4 w-4 mr-1" />
+                        Abrir
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusão</DialogTitle>
+              <DialogDescription>
+                Tem certeza que deseja excluir este repertório? Todas as músicas contidas nele também serão removidas. Esta ação não pode ser desfeita.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancelar
+              </Button>
+              <Button type="button" variant="destructive" onClick={handleDeleteRepertorio}>
+                Excluir Permanentemente
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   );

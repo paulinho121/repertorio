@@ -11,6 +11,8 @@ export default function LoginScreen() {
   const { login, register } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [currentTab, setCurrentTab] = useState('login');
 
   // Estados para login
   const [loginData, setLoginData] = useState({
@@ -30,11 +32,12 @@ export default function LoginScreen() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     const result = await login(loginData.email, loginData.password);
     
     if (!result.success) {
-      setError('Email ou senha incorretos');
+      setError(result.error);
     }
     
     setLoading(false);
@@ -44,6 +47,7 @@ export default function LoginScreen() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccess('');
 
     if (registerData.password !== registerData.confirmPassword) {
       setError('As senhas não coincidem');
@@ -59,12 +63,22 @@ export default function LoginScreen() {
 
     const result = await register(registerData.email, registerData.password, registerData.nome);
     
-    if (!result.success) {
+    if (result.success) {
+      setSuccess('Conta criada com sucesso! Verifique seu email para confirmar.');
+      setRegisterData({ nome: '', email: '', password: '', confirmPassword: '' });
+      setCurrentTab('login'); // Switch to login tab
+    } else {
       setError('Erro ao criar conta. Tente novamente.');
     }
     
     setLoading(false);
   };
+  
+  const onTabChange = (value) => {
+      setError('');
+      setSuccess('');
+      setCurrentTab(value);
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -81,158 +95,155 @@ export default function LoginScreen() {
         </div>
 
         {/* Formulários */}
-        <Card>
-          <CardHeader>
-            <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Entrar</TabsTrigger>
-                <TabsTrigger value="register">Criar Conta</TabsTrigger>
-              </TabsList>
-              
-              {/* Tab de Login */}
-              <TabsContent value="login">
-                <CardTitle>Bem-vindo de volta</CardTitle>
-                <CardDescription>
-                  Entre com sua conta para acessar seus repertórios
-                </CardDescription>
-              </TabsContent>
-              
-              {/* Tab de Registro */}
-              <TabsContent value="register">
-                <CardTitle>Criar nova conta</CardTitle>
-                <CardDescription>
-                  Crie sua conta para começar a organizar seus repertórios
-                </CardDescription>
-              </TabsContent>
-            </Tabs>
-          </CardHeader>
+        <Tabs value={currentTab} onValueChange={onTabChange} className="w-full">
+            <Card>
+                <CardHeader>
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="login">Entrar</TabsTrigger>
+                        <TabsTrigger value="register">Criar Conta</TabsTrigger>
+                    </TabsList>
+                </CardHeader>
 
-          <CardContent>
-            <Tabs defaultValue="login" className="w-full">
-              {/* Formulário de Login */}
-              <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="login-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={loginData.email}
-                        onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="login-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={loginData.password}
-                        onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
+                <CardContent>
+                    {/* Tab de Login */}
+                    <TabsContent value="login">
+                        <div className="text-center mb-6">
+                            <CardTitle>Bem-vindo de volta</CardTitle>
+                            <CardDescription>
+                            Entre com sua conta para acessar seus repertórios
+                            </CardDescription>
+                        </div>
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            {success && (
+                                <div className="text-green-600 text-sm text-center bg-green-50 p-3 rounded-md">{success}</div>
+                            )}
+                            <div className="space-y-2">
+                                <Label htmlFor="login-email">Email</Label>
+                                <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="login-email"
+                                    type="email"
+                                    placeholder="seu@email.com"
+                                    className="pl-10"
+                                    value={loginData.email}
+                                    onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="login-password">Senha</Label>
+                                <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="login-password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="pl-10"
+                                    value={loginData.password}
+                                    onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
 
-                  {error && (
-                    <div className="text-red-600 text-sm text-center">{error}</div>
-                  )}
+                            {error && (
+                                <div className="text-red-600 text-sm text-center">{error}</div>
+                            )}
 
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Entrando...' : 'Entrar'}
-                  </Button>
-                </form>
-              </TabsContent>
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? 'Entrando...' : 'Entrar'}
+                            </Button>
+                        </form>
+                    </TabsContent>
 
-              {/* Formulário de Registro */}
-              <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="register-nome">Nome</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-nome"
-                        type="text"
-                        placeholder="Seu nome"
-                        className="pl-10"
-                        value={registerData.nome}
-                        onChange={(e) => setRegisterData({...registerData, nome: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
+                    {/* Formulário de Registro */}
+                    <TabsContent value="register">
+                        <div className="text-center mb-6">
+                            <CardTitle>Criar nova conta</CardTitle>
+                            <CardDescription>
+                            Crie sua conta para começar a organizar seus repertorios
+                            </CardDescription>
+                        </div>
+                        <form onSubmit={handleRegister} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="register-nome">Nome</Label>
+                                <div className="relative">
+                                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="register-nome"
+                                    type="text"
+                                    placeholder="Seu nome"
+                                    className="pl-10"
+                                    value={registerData.nome}
+                                    onChange={(e) => setRegisterData({...registerData, nome: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="seu@email.com"
-                        className="pl-10"
-                        value={registerData.email}
-                        onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={registerData.password}
-                        onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="register-email">Email</Label>
+                                <div className="relative">
+                                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="register-email"
+                                    type="email"
+                                    placeholder="seu@email.com"
+                                    className="pl-10"
+                                    value={registerData.email}
+                                    onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="register-password">Senha</Label>
+                                <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="register-password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="pl-10"
+                                    value={registerData.password}
+                                    onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-confirm">Confirmar Senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input
-                        id="register-confirm"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        value={registerData.confirmPassword}
-                        onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="register-confirm">Confirmar Senha</Label>
+                                <div className="relative">
+                                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    id="register-confirm"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    className="pl-10"
+                                    value={registerData.confirmPassword}
+                                    onChange={(e) => setRegisterData({...registerData, confirmPassword: e.target.value})}
+                                    required
+                                />
+                                </div>
+                            </div>
 
-                  {error && (
-                    <div className="text-red-600 text-sm text-center">{error}</div>
-                  )}
+                            {error && (
+                                <div className="text-red-600 text-sm text-center">{error}</div>
+                            )}
 
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Criando conta...' : 'Criar Conta'}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? 'Criando conta...' : 'Criar Conta'}
+                            </Button>
+                        </form>
+                    </TabsContent>
+                </CardContent>
+            </Card>
+        </Tabs>
       </div>
     </div>
   );

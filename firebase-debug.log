@@ -1,0 +1,27 @@
+[debug] [2025-09-25T17:50:39.175Z] ----------------------------------------------------------------------
+[debug] [2025-09-25T17:50:39.180Z] Command:       /nix/store/ws50yvm6vzlzf7jzz6n7xh4szddrack1-nodejs-20.19.1/bin/node /nix/store/a3jfkfzmr1h8lmk31a8fbchkg5sp12q9-firebase-tools-14.16.0/lib/node_modules/firebase-tools/lib/bin/firebase.js apps:sdkconfig
+[debug] [2025-09-25T17:50:39.181Z] CLI Version:   14.16.0
+[debug] [2025-09-25T17:50:39.181Z] Platform:      linux
+[debug] [2025-09-25T17:50:39.182Z] Node Version:  v20.19.1
+[debug] [2025-09-25T17:50:39.182Z] Time:          Thu Sep 25 2025 17:50:39 GMT+0000 (Coordinated Universal Time)
+[debug] [2025-09-25T17:50:39.182Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-09-25T17:50:39.185Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2025-09-25T17:50:39.246Z] No OAuth tokens found
+[debug] [2025-09-25T17:50:39.247Z] No OAuth tokens found
+[error] Failed to fetch Firebase Project from current Studio Workspace: Unable to refresh auth: not yet authenticated.
+[debug] [2025-09-25T17:50:39.254Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform","https://www.googleapis.com/auth/userinfo.email"]
+[debug] [2025-09-25T17:50:39.366Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2025-09-25T17:50:39.373Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2025-09-25T17:52:16.018Z] Running auto auth
+[debug] [2025-09-25T17:52:16.054Z] No OAuth tokens found
+[debug] [2025-09-25T17:52:16.057Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/monospace-15:searchApps pageSize=100
+[debug] [2025-09-25T17:52:16.406Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/monospace-15:searchApps 404
+[debug] [2025-09-25T17:52:16.406Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/monospace-15:searchApps {"error":{"code":404,"message":"Firebase project 938453762903 not found.","status":"NOT_FOUND"}}
+[debug] [2025-09-25T17:52:16.411Z] Request to https://firebase.googleapis.com/v1beta1/projects/monospace-15:searchApps?pageSize=100 had HTTP Error: 404, Firebase project 938453762903 not found.
+[debug] [2025-09-25T17:52:16.416Z] FirebaseError: Request to https://firebase.googleapis.com/v1beta1/projects/monospace-15:searchApps?pageSize=100 had HTTP Error: 404, Firebase project 938453762903 not found.
+    at responseToError (/nix/store/a3jfkfzmr1h8lmk31a8fbchkg5sp12q9-firebase-tools-14.16.0/lib/node_modules/firebase-tools/lib/responseToError.js:52:12)
+    at RetryOperation._fn (/nix/store/a3jfkfzmr1h8lmk31a8fbchkg5sp12q9-firebase-tools-14.16.0/lib/node_modules/firebase-tools/lib/apiv2.js:312:77)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+[error] 
+[error] Error: Failed to list Firebase apps. See firebase-debug.log for more info.
