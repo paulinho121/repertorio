@@ -5,11 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Music, Play, LogOut, User, Calendar, Trash2 } from 'lucide-react';
+import { Plus, Music, Play, LogOut, User, Calendar, Trash2, Users } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { supabase } from '../lib/supabase';
 
-export default function Dashboard({ onSelectRepertorio }) {
+export default function Dashboard({ onSelectRepertorio, onNavigate }) {
   const { user, logout } = useAuth();
   const [repertorios, setRepertorios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -155,51 +155,58 @@ export default function Dashboard({ onSelectRepertorio }) {
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-medium text-gray-900">Seus Repertórios</h3>
           
-          <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Repertório
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar Novo Repertório</DialogTitle>
-                <DialogDescription>
-                  Crie um novo repertório para organizar suas músicas.
-                </DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleCreateRepertorio} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nome">Nome do Repertório</Label>
-                  <Input
-                    id="nome"
-                    placeholder="Ex: Show de Sábado"
-                    value={newRepertorio.nome}
-                    onChange={(e) => setNewRepertorio({...newRepertorio, nome: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="descricao">Descrição (opcional)</Label>
-                  <Textarea
-                    id="descricao"
-                    placeholder="Ex: Repertório para o show no Bar do Zé"
-                    value={newRepertorio.descricao}
-                    onChange={(e) => setNewRepertorio({...newRepertorio, descricao: e.target.value})}
-                  />
-                </div>
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowNewDialog(false)}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    Criar Repertório
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => onNavigate('monte-sua-banda')}>
+                <Users className="h-4 w-4 mr-2" />
+                Monte sua Banda
+            </Button>
+            <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Novo Repertório
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Repertório</DialogTitle>
+                  <DialogDescription>
+                    Crie um novo repertório para organizar suas músicas.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateRepertorio} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nome">Nome do Repertório</Label>
+                    <Input
+                      id="nome"
+                      placeholder="Ex: Show de Sábado"
+                      value={newRepertorio.nome}
+                      onChange={(e) => setNewRepertorio({...newRepertorio, nome: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="descricao">Descrição (opcional)</Label>
+                    <Textarea
+                      id="descricao"
+                      placeholder="Ex: Repertório para o show no Bar do Zé"
+                      value={newRepertorio.descricao}
+                      onChange={(e) => setNewRepertorio({...newRepertorio, descricao: e.target.value})}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button type="button" variant="outline" onClick={() => setShowNewDialog(false)}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">
+                      Criar Repertório
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+           </div>
         </div>
 
         {/* Repertórios Grid */}

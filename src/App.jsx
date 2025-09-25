@@ -4,6 +4,7 @@ import LoginScreen from './components/LoginScreen';
 import Dashboard from './components/Dashboard';
 import RepertorioManager from './components/RepertorioManager';
 import LiveMode from './components/LiveMode';
+import MonteSuaBanda from './components/MonteSuaBanda';
 import './App.css';
 
 function AppContent() {
@@ -11,6 +12,10 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedRepertorio, setSelectedRepertorio] = useState(null);
   const [liveMusicas, setLiveMusicas] = useState([]);
+
+  const handleNavigate = (view) => {
+    setCurrentView(view);
+  };
 
   const handleSelectRepertorio = (repertorio) => {
     setSelectedRepertorio(repertorio);
@@ -65,9 +70,11 @@ function AppContent() {
           onBack={handleBackFromLive}
         />
       );
+    case 'monte-sua-banda':
+      return <MonteSuaBanda onBack={handleBackToDashboard} />;
     default:
       return (
-        <Dashboard onSelectRepertorio={handleSelectRepertorio} />
+        <Dashboard onSelectRepertorio={handleSelectRepertorio} onNavigate={handleNavigate} />
       );
   }
 }
